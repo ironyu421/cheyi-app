@@ -9,7 +9,6 @@ import {
   X, 
   Car, 
   Settings, 
-  ExternalLink, 
   ChevronLeft, 
   ChevronRight,
   DollarSign,
@@ -25,7 +24,7 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-// --- Firebase 配置 ---
+// --- Firebase 配置 (請確保在此填入您的專案資訊) ---
 const firebaseConfig = {
   apiKey: "AIzaSyDaPsCZ_3x9ZDR86QvHO9W780cndj_nxqA",
   authDomain: "cheyi-ebb4f.firebaseapp.com",
@@ -300,7 +299,7 @@ const App = () => {
           {view === 'list' && (
             <div className="bg-white rounded-[2.5rem] p-6 md:p-8 shadow-xl shadow-teal-900/5 border border-white">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-black text-slate-800">所有明細</h2>
+                <h2 className="text-xl font-black text-slate-800">營收明細</h2>
                 <button onClick={exportToExcel} className="flex items-center gap-2 bg-teal-50 text-teal-600 px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-teal-100">
                   <Download size={16}/> 匯出 CSV
                 </button>
@@ -323,4 +322,138 @@ const App = () => {
                         <td className="px-4 py-5 font-bold text-slate-700">{t.customerName}</td>
                         <td className="px-4 py-5">
                           <div className="flex flex-col">
-                            <span className="text-xs font-bold text-slate-600">{
+                            <span className="text-xs font-bold text-slate-600">{t.serviceItem}</span>
+                            <span className="text-[10px] text-slate-300">{t.carType}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-5 font-black text-teal-500">${(Number(t.amount) - (Number(t.discount) || 0)).toLocaleString()}</td>
+                        <td className="px-4 py-5 text-right space-x-1">
+                          <button onClick={() => { setEditingId(t.id); setFormData(t); setIsModalOpen(true); }} className="p-2 text-slate-300 hover:text-teal-500"><Edit2 size={14}/></button>
+                          <button onClick={() => deleteTransaction(t.id)} className="p-2 text-slate-300 hover:text-red-400"><Trash2 size={14}/></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {view === 'pricing' && (
+            <div className="bg-white rounded-[2.5rem] p-6 md:p-10 shadow-xl shadow-teal-900/5 border border-white">
+              <h2 className="text-2xl font-black text-slate-800 mb-8">價目表管理</h2>
+              <div className="space-y-8">
+                {Object.keys(priceMatrix).map(type => (
+                  <div key={type} className="bg-slate-50 rounded-3xl p-6">
+                    <h3 className="font-black text-slate-800 mb-6 flex items-center gap-2 text-sm uppercase tracking-widest">
+                      <Car size={18} className="text-teal-500"/> {type}
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {Object.keys(priceMatrix[type]).map(service => (
+                        <div key={service} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                          <label className="text-[10px] font-black text-slate-400 uppercase block mb-2">{service}</label>
+                          <div className="relative">
+                             <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-bold">$</span>
+                             <input 
+                              type="number" 
+                              value={priceMatrix[type][service]} 
+                              onChange={(e) => {
+                                const newVal = e.target.value;
+                                setPriceMatrix(prev => ({...prev, [type]: {...prev[type], [service]: Number(newVal)}}));
+                              }}
+                              className="w-full pl-4 font-black text-slate-700 outline-none"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 彈出視窗 */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 bg-slate-900 text-white flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black">{editingId ? '編輯紀錄' : '新增紀錄'}</h3>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Car Wash Management</p>
+              </div>
+              <button onClick={closeModal} className="p-2 hover:bg-white/10 rounded-full"><X size={20}/></button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2">客戶/車牌</label>
+                  <input type="text" required name="customerName" value={formData.customerName} onChange={handleInputChange} className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold text-sm" placeholder="例如：林先生 (ABC-1234)" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2">日期</label>
+                  <input type="date" required name="date" value={formData.date} onChange={handleInputChange} className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold text-sm" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2">車型</label>
+                  <select name="carType" value={formData.carType} onChange={handleInputChange} className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold text-sm appearance-none cursor-pointer">
+                    <option value="">選擇車型</option>
+                    {Object.keys(priceMatrix).map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2">服務項目</label>
+                  <select name="serviceItem" value={formData.serviceItem} onChange={handleInputChange} className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold text-sm appearance-none cursor-pointer">
+                    <option value="">選擇項目</option>
+                    {formData.carType && Object.keys(priceMatrix[formData.carType]).map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="bg-teal-50 p-6 rounded-[2rem] flex items-center justify-between border border-teal-100">
+                <div>
+                  <label className="text-[10px] font-black text-teal-600 uppercase block mb-1">實收金額</label>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xl font-black text-teal-700">$</span>
+                    <input type="number" name="amount" value={formData.amount} onChange={handleInputChange} className="bg-transparent text-3xl font-black text-teal-700 outline-none w-32" />
+                  </div>
+                </div>
+                <div className="text-right">
+                  <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">成本支出</label>
+                  <input type="number" name="cost" value={formData.cost} onChange={handleInputChange} className="bg-transparent text-xl font-black text-slate-400 outline-none w-24 text-right" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2">折扣/優惠</label>
+                  <input type="number" name="discount" value={formData.discount} onChange={handleInputChange} className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2">付款方式</label>
+                  <select name="paymentMethod" value={formData.paymentMethod} onChange={handleInputChange} className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold text-sm">
+                    <option value="現金">現金</option>
+                    <option value="轉帳">轉帳</option>
+                    <option value="LinePay">LinePay</option>
+                  </select>
+                </div>
+              </div>
+
+              <button type="submit" className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black shadow-xl hover:bg-teal-600 transition-all uppercase tracking-widest text-sm">
+                確認儲存
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
